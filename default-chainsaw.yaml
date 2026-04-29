@@ -1,0 +1,8 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Configuration
+metadata:
+  name: default-configuration
+spec:
+  parallel: 1
+  fullName: true
+  forceTerminationGracePeriod: 5s

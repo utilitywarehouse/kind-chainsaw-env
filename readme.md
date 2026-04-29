@@ -7,19 +7,18 @@ This repository builds a test runner image containing `kind`, `chainsaw`, `kubec
 It is designed to be completely agnostic, meaning you can use it to test Kyverno
 policies, ArgoCD applications, or raw Kubernetes manifests.
 
-## Features
-* **Isolated Testing:** Spins up a fresh, ephemeral `kind` cluster for every test run.
-* **Lightning Fast Iteration:** Set `REUSE_CLUSTER=true` to skip cluster teardown during local development.
-* **Easy Debugging:** Native `make kubectl` support to query the test cluster without installing dependencies on your host machine.
-* **Portable:** Driven entirely by a generic `Makefile` that can be dropped into any project.
+## Zero Local Dependencies (Docker-out-of-Docker)
+You **do not** need to install `kind` or `chainsaw` locally.
+This runner uses the **Docker-out-of-Docker (DooD)** architecture. 
+The `Makefile` mounts local Docker socket into the test runner.
+When the test runner creates a cluster, it communicates directly with your host's
+Docker daemon to spin up the `kind` cluster as a sibling container. 
 
 ---
 
 ## How to use this in your repository
 
-To use this test runner in another project, copy two files into your target repository: the `Makefile` and your Chainsaw configuration YAML.
-
-### Step 1: Copy and Modify the `Makefile`
+To use this test runner in another project, copy `[Makefile](Makefile)` into your target repository.
 
 modify the **Repository-Specific Configuration** block at the top to match your project's needs:
 
@@ -29,30 +28,7 @@ modify the **Repository-Specific Configuration** block at the top to match your 
 INSTALL_MANIFESTS ?= https://github.com/kyverno/kyverno/raw/main/config/install-latest-testing.yaml
 
 # Tell the runner which namespace to wait on before starting tests
-INSTALL_NAMESPACE ?= kube-system
-
-# Point to your Chainsaw configuration file
-CHAINSAW_CONFIG ?= .chainsaw.yaml
-```
-
-### Step 2: Copy and Modify the `.chainsaw.yaml` file
-Chainsaw requires a configuration file to know how to behave.
-```
-apiVersion: chainsaw.kyverno.io/v1alpha1
-kind: Configuration
-metadata:
-  name: generic-configuration
-spec:
-  parallel: 1
-  fullName: true
-  forceTerminationGracePeriod: 5s
-  timeouts:
-    apply: 30s
-    assert: 30s
-    cleanup: 30s
-    delete: 30s
-    error: 30s
-    exec: 30s
+INSTALL_NAMESPACE ?= kyverno
 ```
 
 #### Local Development Commands
@@ -77,7 +53,8 @@ make test-target TEST_DIR=kyverno/policies/pods REUSE_CLUSTER=true
 ```
 
 #### 4. Debugging a failed test:
-If a test fails, Chainsaw normally deletes the resources. Use SKIP_DELETE=true to freeze them in place, then use make kubectl to inspect the cluster.
+If a test fails, Chainsaw normally deletes the resources. Use `SKIP_DELETE=true`
+to freeze them in place, then use make kubectl to inspect the cluster.
 
 ```bash
 # Run the test and freeze the resources

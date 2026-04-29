@@ -1,7 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-# UPDATE THIS to match your centralized Docker image
 IMAGE_NAME := quay.io/utilitywarehouse/kind-chainsaw-env:latest
 REPO_DIR := $(shell git rev-parse --show-toplevel)
 
@@ -10,10 +9,11 @@ SKIP_DELETE ?= false
 REUSE_CLUSTER ?= false
 TEST_DIR ?= .
 
+# Repository-Specific Configuration
 # Point to a local folder (e.g., kyverno/e2e-deploy), a URL, or leave blank to skip
-INSTALL_MANIFESTS ?= https://github.com/kyverno/kyverno/raw/main/config/install-latest-testing.yaml
+INSTALL_MANIFESTS ?= kyverno/e2e-deploy
 INSTALL_NAMESPACE ?= kube-system
-CHAINSAW_CONFIG ?= .chainsaw.yaml
+CHAINSAW_CONFIG ?= kyverno/policies/.chainsaw.yaml
 
 .PHONY: help
 help:
@@ -36,12 +36,8 @@ help:
 setup-network:
 	@docker network inspect kind >/dev/null 2>&1 || docker network create kind
 
-.PHONY: pull-image
-pull-image:
-	@docker pull $(IMAGE_NAME)
-
 .PHONY: test-all
-test-all: setup-network pull-image
+test-all: setup-network
 	@echo "Running ALL chainsaw tests..."
 	docker run --rm \
 		--name chainsaw-runner \
@@ -56,7 +52,7 @@ test-all: setup-network pull-image
 		$(IMAGE_NAME) "."
 
 .PHONY: test-target
-test-target: setup-network pull-image
+test-target: setup-network
 	@if [ "$(TEST_DIR)" = "." ]; then \
 		echo "Error: TEST_DIR is not set. Usage: make test-target TEST_DIR=argocd"; \
 		exit 1; \
@@ -75,7 +71,7 @@ test-target: setup-network pull-image
 		$(IMAGE_NAME) "$(TEST_DIR)"
 
 .PHONY: clean
-clean: setup-network pull-image
+clean: setup-network
 	@docker run --rm \
 		--network kind \
 		-v /var/run/docker.sock:/var/run/docker.sock \

@@ -48,9 +48,9 @@ if [ "$CLUSTER_JUST_CREATED" = "true" ]; then
         if [[ "$INSTALL_MANIFESTS" == http* ]]; then
             kubectl create -f "$INSTALL_MANIFESTS"
         elif [ -d "/repo/$INSTALL_MANIFESTS" ] && [ -f "/repo/$INSTALL_MANIFESTS/kustomization.yaml" ]; then
-            kustomize build "/repo/$INSTALL_MANIFESTS" | kubectl apply -f -
+            kustomize build "/repo/$INSTALL_MANIFESTS" | kubectl create --namespace "$INSTALL_NAMESPACE" -f -
         else
-            kubectl apply -f "/repo/$INSTALL_MANIFESTS"
+            kubectl create --namespace "$INSTALL_NAMESPACE" -f "/repo/$INSTALL_MANIFESTS"
         fi
         
         echo "Waiting for all pods in namespace '$INSTALL_NAMESPACE' to be available..."

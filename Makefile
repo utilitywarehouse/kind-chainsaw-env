@@ -11,9 +11,10 @@ TEST_DIR ?= .
 
 # Repository-Specific Configuration
 # Point to a local folder (e.g., kyverno/e2e-deploy), a URL, or leave blank to skip
-INSTALL_MANIFESTS ?= kyverno/e2e-deploy
+INSTALL_MANIFESTS ?= https://github.com/kyverno/kyverno/raw/main/config/install-latest-testing.yaml
 INSTALL_NAMESPACE ?= kube-system
-CHAINSAW_CONFIG ?= kyverno/policies/.chainsaw.yaml
+# Leave blank to use the image's baked-in default
+CHAINSAW_CONFIG ?=
 
 .PHONY: help
 help:
@@ -28,13 +29,27 @@ help:
 	@echo "  kubectl       Run kubectl commands against the persistent test cluster"
 	@echo ""
 	@echo "Variables for Local Dev:"
-	@echo "  TEST_DIR      Target directory (e.g., TEST_DIR=aws/pod-security)."
+	@echo "  TEST_DIR      Target directory (e.g., TEST_DIR=kyverno/policies/pods)."
 	@echo "  REUSE_CLUSTER Set to 'true' to skip cluster teardown."
 	@echo "  SKIP_DELETE   Set to 'true' to leave resources in the cluster for debugging."
+	@echo ""
+	@echo "Debugging (When REUSE_CLUSTER=true):"
+	@echo "  To run kubectl commands against the persistent test cluster from your host:"
+	@echo "  make kubectl CMD=\"get pods -n kyverno\""
+	@echo ""
+	@echo "Examples:"
+	@echo "  make test-all"
+	@echo "  make test-target TEST_DIR=kyverno/policies/pods"
+	@echo "  make test-target TEST_DIR=kyverno/policies/pods REUSE_CLUSTER=true"
+	@echo "  make kubectl CMD=\"get pods -n kyverno\""
 
 .PHONY: setup-network
 setup-network:
 	@docker network inspect kind >/dev/null 2>&1 || docker network create kind
+
+.PHONY: pull-image
+pull-image:
+	@docker pull $(IMAGE_NAME)
 
 .PHONY: test-all
 test-all: setup-network

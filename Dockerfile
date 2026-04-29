@@ -28,6 +28,7 @@ RUN curl -sSL https://github.com/kyverno/chainsaw/releases/latest/download/chain
     | tar xz -C /usr/local/bin chainsaw
 
 WORKDIR /repo
+COPY default-chainsaw.yaml /default-chainsaw.yaml
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

@@ -63,10 +63,11 @@ fi
 CHAINSAW_ARGS=("/repo/$TEST_TARGET")
 
 if [ -n "$CHAINSAW_CONFIG" ] && [ -f "/repo/$CHAINSAW_CONFIG" ]; then
-    echo "Using custom Chainsaw config: $CHAINSAW_CONFIG"
+    echo "Using custom Chainsaw config from repo: $CHAINSAW_CONFIG"
     CHAINSAW_ARGS+=("--config" "/repo/$CHAINSAW_CONFIG")
 else
-    echo "No custom Chainsaw config found or provided. Using defaults."
+    echo "No custom config provided. Using default config."
+    CHAINSAW_ARGS+=("--config" "/default-chainsaw.yaml")
 fi
 
 if [ "$SKIP_DELETE" = "true" ]; then

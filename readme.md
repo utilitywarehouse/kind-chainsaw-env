@@ -31,6 +31,22 @@ INSTALL_MANIFESTS ?= https://github.com/kyverno/kyverno/raw/main/config/install-
 INSTALL_NAMESPACE ?= kyverno
 ```
 
+#### Pinning the Kubernetes version
+
+The `Makefile` names the version explicitly, so the repo running the tests decides
+it. The image also bakes a default for bare `docker run` use, but the Makefile value
+always wins:
+
+```makefile
+KIND_NODE_IMAGE ?= kindest/node:v1.36.4
+```
+
+Pick a node image from the [kind release notes](https://github.com/kubernetes-sigs/kind/releases)
+— kind only supports the images built for its own releases.
+
+The entrypoint logs `kind version` and the cluster version on every run, so a
+reused cluster with the wrong version shows up in the output.
+
 #### Local Development Commands
 
 #### 1. Run all tests in the repository:

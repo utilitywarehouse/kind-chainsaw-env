@@ -5,6 +5,13 @@ set -e
 TEST_TARGET=${1:-"."}
 CLUSTER_NAME="chainsaw-test-cluster"
 
+# The image bakes a default; callers can pin a different Kubernetes version.
+KIND_NODE_IMAGE=${KIND_NODE_IMAGE:-}
+if [ -z "$KIND_NODE_IMAGE" ]; then
+    echo "KIND_NODE_IMAGE is empty. The runner image bakes a default, so only set it to override." >&2
+    exit 1
+fi
+
 INTERNAL_KUBECONFIG="/tmp/kubeconfig"
 export KUBECONFIG="$INTERNAL_KUBECONFIG"
 
@@ -24,18 +31,24 @@ else
     trap 'echo "Cleaning up..."; kind delete cluster --name "$CLUSTER_NAME"; echo "Cleanup complete!"' EXIT
 fi
 
+echo "kind version: $(kind version)"
+echo "Node image: $KIND_NODE_IMAGE"
+
 # Create cluster ONLY if it doesn't already exist
 if kind get clusters | grep -q "^${CLUSTER_NAME}$"; then
     echo "Cluster '$CLUSTER_NAME' already exists! Skipping creation."
     CLUSTER_JUST_CREATED=false
 else
     echo "Creating kind cluster: $CLUSTER_NAME..."
-    kind create cluster --name "$CLUSTER_NAME"
+    kind create cluster --name "$CLUSTER_NAME" --image "$KIND_NODE_IMAGE"
     CLUSTER_JUST_CREATED=true
 fi
 
 # Generate Kubeconfig
 kind get kubeconfig --internal --name "$CLUSTER_NAME" > "$INTERNAL_KUBECONFIG"
+
+# Reused clusters keep whatever version they were created with, so show it
+kubectl version || true
 
 # Install given manifests and dependencies ONLY if we just created a fresh cluster
 if [ "$CLUSTER_JUST_CREATED" = "true" ]; then

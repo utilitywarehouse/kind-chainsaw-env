@@ -1,5 +1,9 @@
 FROM alpine:latest
 
+ARG KIND_NODE_IMAGE=kindest/node:v1.36.4
+
+ENV KIND_NODE_IMAGE=${KIND_NODE_IMAGE}
+
 # Install dependencies and Docker CLI
 RUN apk add --no-cache bash curl git docker-cli
 

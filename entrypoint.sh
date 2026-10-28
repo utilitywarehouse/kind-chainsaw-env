@@ -66,7 +66,12 @@ if [ "$CLUSTER_JUST_CREATED" = "true" ]; then
             kubectl create --namespace "$INSTALL_NAMESPACE" -f "/repo/$INSTALL_MANIFESTS"
         fi
         
-        echo "Waiting for all pods in namespace '$INSTALL_NAMESPACE' to be available..."
+        # Wait for Deployments first: `pods --all` only sees pods that exist
+        # right now, so it can return before a controller has created its pod.
+        echo "Waiting for all deployments in namespace '$INSTALL_NAMESPACE' to be available..."
+        kubectl wait --namespace "$INSTALL_NAMESPACE" --for=condition=available deployment --all --timeout=180s
+
+        echo "Waiting for all pods in namespace '$INSTALL_NAMESPACE' to be ready..."
         kubectl wait --namespace "$INSTALL_NAMESPACE" --for=condition=ready pods --all --timeout=120s
     else
         echo "INSTALL_MANIFESTS is empty. Skipping prerequisite installation."

@@ -73,6 +73,57 @@ if [ "$CLUSTER_JUST_CREATED" = "true" ]; then
 
         echo "Waiting for all pods in namespace '$INSTALL_NAMESPACE' to be ready..."
         kubectl wait --namespace "$INSTALL_NAMESPACE" --for=condition=ready pods --all --timeout=120s
+
+        # Deployment availability does not mean the webhook is serving: the
+        # listener starts after the containers are Ready and Kyverno registers
+        # its webhook configurations at runtime. A policy applied in that
+        # window fails with "connection refused", so warm the admission path
+        # up with a throwaway policy and wait until Kyverno reports it ready.
+        if kubectl get crd validatingpolicies.policies.kyverno.io >/dev/null 2>&1; then
+            echo "Waiting for Kyverno to admit and reconcile a policy..."
+            cat <<'CANARY' > /tmp/kyverno-canary.yaml
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: chainsaw-kyverno-canary
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE]
+        resources: [configmaps]
+  validations:
+    - expression: "true"
+CANARY
+
+            # Controllers register their webhooks before the leader-elected
+            # workers start, and on a busy runner that gap has been minutes.
+            # Give it five.
+            kyverno_ready=false
+            for i in $(seq 1 150); do
+                kubectl create -f /tmp/kyverno-canary.yaml >/dev/null 2>&1 || true
+                canary_status=$(kubectl get validatingpolicy.policies.kyverno.io chainsaw-kyverno-canary -o jsonpath='{.status.conditionStatus.ready}/{.status.generated}' 2>/dev/null || true)
+                if [ "${canary_status%%/*}" = "true" ]; then
+                    kyverno_ready=true
+                    break
+                fi
+                if [ $((i % 10)) -eq 0 ]; then
+                    echo "  still waiting ($((i * 2))s): ready/generated=${canary_status:-<not created>}"
+                fi
+                sleep 2
+            done
+
+            kubectl delete validatingpolicy.policies.kyverno.io chainsaw-kyverno-canary --ignore-not-found >/dev/null 2>&1 || true
+
+            if [ "$kyverno_ready" != "true" ]; then
+                echo "Timed out waiting for Kyverno to become ready." >&2
+                exit 1
+            fi
+            sleep 2
+            echo "Kyverno is ready."
+        fi
     else
         echo "INSTALL_MANIFESTS is empty. Skipping prerequisite installation."
     fi
